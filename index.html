@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Water Supply System</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Water Supply System</h1>
+      <table class="table">
+        <tr>
+          <th>Field</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>LED</td>
+          <td id="led">OFF</td>
+        </tr>
+
+        <tr>
+          <td>Status</td>
+          <td>
+            <label class="switch">
+              <input type="checkbox" id="status" />
+              <span class="slider"></span>
+            </label>
+          </td>
+        </tr>
+
+        <tr>
+          <td>Moisture Level</td>
+          <td id="moisture">0</td>
+        </tr>
+      </table>
+    </div>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
