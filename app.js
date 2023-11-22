@@ -33,10 +33,10 @@ const refDB = ref(db);
 onValue(refDB, (snapshot) => {
   const data = snapshot.val();
   led.textContent = data.LedStatus === 0 ? "OFF" : "ON";
-  status.checked = data.Status;
+  status.checked = data.LedStatus;
   moisture.textContent = data.MoistureLevel;
 });
 
 status.addEventListener("change", (e) => {
-  editValue("Status", e.target.checked);
+  editValue("LedStatus", e.target.checked ? 1 : 0);
 });
