@@ -14,26 +14,24 @@ Firebase firebase(REFERENCE_URL);
 uint8_t DHTPin = D1;
 uint8_t LEDpin = D2;
 uint8_t WATERpin = A0;
-uint8_t MOISTUREpin = D6;
 DHT dht(DHTPin, DHTTYPE);
 
 float Temperature;
 float Humidity; 
 float Water;
-float Moisture;
 int LedStatus;
 
-SoftwareSerial mcu(13,15);
+SoftwareSerial s(D6,D5);
+int data;
 
 void setup() {
+  s.begin(9600);
   Serial.begin(9600);
-  mcu.begin(19200);
   delay(100);
 
   pinMode(DHTPin, INPUT);
   pinMode(LEDpin, OUTPUT);
   pinMode(WATERpin, INPUT);
-  pinMode(MOISTUREpin, INPUT);
 
   dht.begin(); 
 
@@ -68,19 +66,13 @@ void WifiSetup() {
 }
 
 void loop() {
-  Serial.println("=============LED============");
+  listenSerial();
   connectLed();
-  Serial.println("=============DHT============");
   connectTemp();
-  Serial.println("=============Water============");
   connectWaterSensor();
-  Serial.println("=============Moisture============");
-  connectMoisture();
-  Serial.println("=============wateringCalculation============");
-
+  
   wateringCalculation();
   Serial.println("============END of LOOP=============");
-  Serial.println();
   Serial.println();
   delay(1000);
 }
@@ -115,13 +107,6 @@ void connectWaterSensor() {
   }
 }
 
-void connectMoisture() {
-  Moisture = firebase.getFloat("MoistureLevel");
-  Serial.println("Moisture: ");
-  Serial.println(Moisture);
-  firebase.setFloat("MoistureLevel", Moisture);
-}
-
 void connectLed() {
   LedStatus = firebase.getInt("LedStatus");
   if(LedStatus == 1)
@@ -148,11 +133,18 @@ void onLedOff() {
 void wateringCalculation() {
   if (Humidity <= 40.00) {
     onLedOn();
-    mcu.write(1);
-    // WaterStepper.step(100);
+    s.write("f");
   } else {
+    s.write("b");
     onLedOff();
-    mcu.write(0);
-    // WaterStepper.step(-100);
   }
+}
+
+void listenSerial() {
+  s.write("f");
+  if (s.available() > 0) {
+    data = s.read();
+    Serial.println("MCU Recieved");
+    Serial.println(data);
+  }  
 }
