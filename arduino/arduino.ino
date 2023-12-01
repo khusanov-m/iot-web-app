@@ -5,6 +5,12 @@
 #define IN3 10
 #define IN4 11
 
+	
+#define BUZZER 5
+#define MoistureSensor A0
+
+int MoistureValue;
+
 int step_number = 0;
 const int stepPerRev = 1024;
 
@@ -16,27 +22,36 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
+  pinMode(BUZZER, OUTPUT);
+  pinMode(MoistureSensor, INPUT);
+
+  Serial.begin(9600);
   s.begin(9600);
-  Serial.begin(19200);
 }
 
 void loop() {
-  int data = 50;
+  noTone(BUZZER);
+  MoistureValue = analogRead(MoistureSensor);
+  Serial.println("MoistureValue");
+  Serial.println(MoistureValue);
+
   if(s.available() > 0) {
     char c = s.read();
-    if (c == 's') {
-      s.write(data);
-    }
     Serial.println(c);
     if (c == 'f') {
+      tone(BUZZER, 85);
+      delay(1000);
+      int data = 1;
       rotateForward();
       s.write(data);
-    }
-    if (c == 'b') {
+    } else if (c == 'b') {
+      
+      int data = 0;
       rotateBack();
       s.write(data);
     }
   }
+  Serial.println("END");
   delay(1000);
 }
 

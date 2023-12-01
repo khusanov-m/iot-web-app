@@ -3,6 +3,7 @@
 #include "DHT.h"
 #include <Stepper.h>
 #include <SoftwareSerial.h>
+#include <LiquidCrystal_I2C.h>
 
 #define _SSID "Netis"          // Your WiFi SSID
 #define _PASSWORD "The/+Future+/_/-Rich-/Family"      // Your WiFi Password
@@ -11,24 +12,35 @@
 Firebase firebase(REFERENCE_URL);
 
 #define DHTTYPE DHT11   // DHT 22  (AM2302), AM2321
-uint8_t DHTPin = D1;
-uint8_t LEDpin = D2;
+
+LiquidCrystal_I2C lcd(0x3F,16,2);
+
+uint8_t DHTPin = D3;
+uint8_t LEDpin = D4;
 uint8_t WATERpin = A0;
 DHT dht(DHTPin, DHTTYPE);
 
-float Temperature;
-float Humidity; 
-float Water;
-int LedStatus;
+// Data related with Firebase Values
+float TemperatureValue;
+float HumidityValue; 
+float WaterValue;
+float MoistureValue;
+int LedStatusValue;
+
+int isWateringOn;  // Local variable to watch status of working 1 - ON, 2 - OFF, 3 - STALE
 
 SoftwareSerial s(D6,D5);
-int data;
+int data; // Recor of Arduino message or MoistureValue
+
+unsigned long currentMillis;
 
 void setup() {
-  s.begin(9600);
   Serial.begin(9600);
+  s.begin(9600);
   delay(100);
 
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
   pinMode(DHTPin, INPUT);
   pinMode(LEDpin, OUTPUT);
   pinMode(WATERpin, INPUT);
@@ -36,6 +48,7 @@ void setup() {
   dht.begin(); 
 
   WifiSetup();
+  LCDSetup();
 }
 
 void WifiSetup() {
@@ -64,87 +77,115 @@ void WifiSetup() {
   Serial.print(WiFi.localIP());
   Serial.println("/");
 }
+void LCDSetup() {
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+}
+
+void loadInitialValues() {
+  TemperatureValue = firebase.getFloat("Temperature");
+  HumidityValue = firebase.getFloat("Humidity");
+  WaterValue = firebase.getInt("WaterLevel"); 
+  LedStatusValue = firebase.getInt("LedStatus"); 
+}
 
 void loop() {
+  loadInitialValues();
+
+  watchLed();
+  watchTemp();
+  watchWaterSensor();
+
   listenSerial();
-  connectLed();
-  connectTemp();
-  connectWaterSensor();
   
   wateringCalculation();
+  
   Serial.println("============END of LOOP=============");
   Serial.println();
+
   delay(1000);
 }
 
-void connectTemp() {
-  float tData = firebase.getFloat("Temperature");
-  float hData = firebase.getFloat("Humidity");
+void watchTemp() {
+  TemperatureValue = dht.readTemperature(); // Gets the values of the temperature
+  HumidityValue = dht.readHumidity(); // Gets the values of the humidity
+  firebase.setFloat("Temperature", TemperatureValue);
+  firebase.setFloat("Humidity", HumidityValue);
 
-  Temperature = dht.readTemperature(); // Gets the values of the temperature
-  Humidity = dht.readHumidity(); // Gets the values of the humidity
+  showDHTToLCD();
 
   Serial.println("Current Temperature: ");
-  Serial.println(Temperature);
+  Serial.println(TemperatureValue);
   Serial.println("Current Humidity: ");
-  Serial.println(Humidity);
-
-  if(Temperature != tData) {
-    firebase.setFloat("Temperature", Temperature);
-  }
-  if(Humidity != hData) {
-    firebase.setFloat("Humidity", Humidity);
-  }
+  Serial.println(HumidityValue);
+}
+void showDHTToLCD() {
+  String firstLine = String("Temperature: ")+ String(TemperatureValue);
+  String secondLine = String("Humidity: ")+ String(HumidityValue);
+  lcd.setCursor(0, 0);
+  lcd.print(firstLine);
+  lcd.setCursor(0, 1);
+  lcd.print(secondLine);
 }
 
-void connectWaterSensor() {
-  Water = firebase.getFloat("WaterLevel");
-  float waterValue = analogRead(WATERpin);
+void watchWaterSensor() {
+  WaterValue = analogRead(WATERpin);
+  firebase.setFloat("WaterLevel", WaterValue);
+
   Serial.println("Water: ");
-  Serial.println(waterValue);
-  if (Water != waterValue) {
-    firebase.setFloat("WaterLevel", waterValue);
-  }
+  Serial.println(WaterValue);
 }
 
-void connectLed() {
-  LedStatus = firebase.getInt("LedStatus");
-  if(LedStatus == 1)
-  {
+void watchLed() {
+  if(LedStatusValue == 1) {
     onLedOn();
   }
-  else {
+  else if(LedStatusValue == 0) {
     onLedOff();
   }
 }
-
 void onLedOn() {
-  firebase.setFloat("LedStatus", 1);
   digitalWrite(LEDpin, HIGH);
   Serial.println("Led Status: ON");
 }
-
 void onLedOff() {
-  firebase.setFloat("LedStatus", 0);
   digitalWrite(LEDpin, LOW);
   Serial.println("Led Status: OFF");
 }
 
 void wateringCalculation() {
-  if (Humidity <= 40.00) {
-    onLedOn();
-    s.write("f");
-  } else {
-    s.write("b");
-    onLedOff();
+  if (WaterValue > 400) { // || MoistureValue > 600 raining or water poured, turn watering off
+    firebase.setInt("LedStatus", 0); 
+    firebase.setInt("EnableWatering", 0);
+    isWateringOn = 0;
+  } else if (TemperatureValue > 40 ) { // || MoistureValue < 400
+    currentMillis = millis();
+    Serial.println(currentMillis);
+    String str =String("{ milis: ")+String(currentMillis)+String(", ")+String("value:")+String(1)+String(" }");
+    Serial.println(str);
+    firebase.pushString("WateringCounts", str);
+    firebase.setInt("LedStatus", 1); 
+    firebase.setInt("EnableWatering", 1);
+    isWateringOn = 1;
   }
 }
 
 void listenSerial() {
-  s.write("f");
+  if(isWateringOn == 1) {
+    s.write("f");
+    isWateringOn = 3;
+  } else if (isWateringOn == 0) {
+    onLedOff();
+    s.write("b");
+    isWateringOn = 3;
+  }
   if (s.available() > 0) {
     data = s.read();
-    Serial.println("MCU Recieved");
-    Serial.println(data);
+    if (data == 1) {
+      Serial.println("Watering Turned ON");
+    } else if (data == 0) {
+      Serial.println("Watering Turned OFF");
+    }
   }  
 }
