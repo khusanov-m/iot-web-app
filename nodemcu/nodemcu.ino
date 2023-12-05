@@ -140,12 +140,12 @@ void onLedOff() {
 }
 
 void wateringCalculation() {
-  if (WaterValue > 400 || MoistureValue < 60) { // raining or water poured, turn watering off
+  if ((WaterValue > 400 || MoistureValue < 60) && isWateringOn == 1) { // raining or water poured, turn watering off
     firebase.setInt("LedStatus", 0); 
     firebase.setInt("EnableWatering", 0);
     isWateringOn = 0;
   } 
-  else if (TemperatureValue < 25 || MoistureValue > 120) {  // calibrated to not pour water in hot weather
+  else if ((TemperatureValue < 25 || MoistureValue > 120) && isWateringOn == 0) {  // calibrated to not pour water in hot weather
     unsigned long currentMillis = millis(); // to separate timing for statistics calculation
     if ((unsigned long)(currentMillis - previousMillis) >= interval) {
       previousMillis = currentMillis;
