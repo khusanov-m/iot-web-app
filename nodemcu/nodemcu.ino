@@ -3,7 +3,6 @@
 #include "DHT.h"
 #include <Stepper.h>
 #include <SoftwareSerial.h>
-#include <LiquidCrystal_I2C.h>
 
 #define _SSID "Netis"          // Your WiFi SSID
 #define _PASSWORD "The/+Future+/_/-Rich-/Family"      // Your WiFi Password
@@ -12,8 +11,6 @@
 Firebase firebase(REFERENCE_URL);
 
 #define DHTTYPE DHT11   // DHT 22  (AM2302), AM2321
-
-LiquidCrystal_I2C lcd(0x3F,16,2);
 
 uint8_t DHTPin = D3;
 uint8_t LEDpin = D4;
@@ -24,15 +21,18 @@ DHT dht(DHTPin, DHTTYPE);
 float TemperatureValue;
 float HumidityValue; 
 float WaterValue;
-float MoistureValue;
+int MoistureValue;
 int LedStatusValue;
 
-int isWateringOn;  // Local variable to watch status of working 1 - ON, 2 - OFF, 3 - STALE
+int isWateringOn;  // Local variable to watch status of working 1 - ON, 2 - OFF, 3 - AFK
 
 SoftwareSerial s(D6,D5);
-int data; // Recor of Arduino message or MoistureValue
 
-unsigned long currentMillis;
+// add const if this should never change
+int interval=86400000; // 24 hours // 10000 can used for demo
+int iteration=0;
+// Tracks the time since last event fired
+unsigned long previousMillis=0;
 
 void setup() {
   Serial.begin(9600);
@@ -48,7 +48,6 @@ void setup() {
   dht.begin(); 
 
   WifiSetup();
-  LCDSetup();
 }
 
 void WifiSetup() {
@@ -77,11 +76,7 @@ void WifiSetup() {
   Serial.print(WiFi.localIP());
   Serial.println("/");
 }
-void LCDSetup() {
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-}
+
 
 void loadInitialValues() {
   TemperatureValue = firebase.getFloat("Temperature");
@@ -112,22 +107,12 @@ void watchTemp() {
   HumidityValue = dht.readHumidity(); // Gets the values of the humidity
   firebase.setFloat("Temperature", TemperatureValue);
   firebase.setFloat("Humidity", HumidityValue);
-
-  showDHTToLCD();
-
   Serial.println("Current Temperature: ");
   Serial.println(TemperatureValue);
   Serial.println("Current Humidity: ");
   Serial.println(HumidityValue);
 }
-void showDHTToLCD() {
-  String firstLine = String("Temperature: ")+ String(TemperatureValue);
-  String secondLine = String("Humidity: ")+ String(HumidityValue);
-  lcd.setCursor(0, 0);
-  lcd.print(firstLine);
-  lcd.setCursor(0, 1);
-  lcd.print(secondLine);
-}
+
 
 void watchWaterSensor() {
   WaterValue = analogRead(WATERpin);
@@ -155,14 +140,19 @@ void onLedOff() {
 }
 
 void wateringCalculation() {
-  if (WaterValue > 400) { // || MoistureValue > 600 raining or water poured, turn watering off
+  if (WaterValue > 400 || MoistureValue < 80) { // raining or water poured, turn watering off
     firebase.setInt("LedStatus", 0); 
     firebase.setInt("EnableWatering", 0);
     isWateringOn = 0;
-  } else if (TemperatureValue > 40 ) { // || MoistureValue < 400
-    currentMillis = millis();
+  } 
+  else if (TemperatureValue < 25 || MoistureValue > 100) {  // calibrated to not pour water in hot weather
+    unsigned long currentMillis = millis(); // to separate timing for statistics calculation
+    if ((unsigned long)(currentMillis - previousMillis) >= interval) {
+      previousMillis = currentMillis;
+      ++iteration;
+    }
     Serial.println(currentMillis);
-    String str =String("{ milis: ")+String(currentMillis)+String(", ")+String("value:")+String(1)+String(" }");
+    String str = String("{ 'millis': ")+String(currentMillis)+String(", ")+String("'iteration': ")+String(iteration)+String(", ")+String("'value':")+String(1)+String(" }");
     Serial.println(str);
     firebase.pushString("WateringCounts", str);
     firebase.setInt("LedStatus", 1); 
@@ -172,7 +162,14 @@ void wateringCalculation() {
 }
 
 void listenSerial() {
+  if (s.available() > 0) {
+    MoistureValue = s.read();
+    Serial.println("MoistureValue: " + String(MoistureValue));
+    firebase.setFloat("MoistureLevel", MoistureValue);
+  }
+
   if(isWateringOn == 1) {
+    onLedOn();
     s.write("f");
     isWateringOn = 3;
   } else if (isWateringOn == 0) {
@@ -180,12 +177,4 @@ void listenSerial() {
     s.write("b");
     isWateringOn = 3;
   }
-  if (s.available() > 0) {
-    data = s.read();
-    if (data == 1) {
-      Serial.println("Watering Turned ON");
-    } else if (data == 0) {
-      Serial.println("Watering Turned OFF");
-    }
-  }  
 }

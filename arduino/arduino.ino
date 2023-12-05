@@ -6,7 +6,7 @@
 #define IN4 11
 
 	
-#define BUZZER 5
+#define BUZZER 3
 #define MoistureSensor A0
 
 int MoistureValue;
@@ -36,19 +36,15 @@ void loop() {
   Serial.println(MoistureValue);
 
   if(s.available() > 0) {
-    char c = s.read();
+    char c = s.read(); // eather 'f'orward for ON and 'b'backward for OFF
     Serial.println(c);
+    s.write(MoistureValue);
     if (c == 'f') {
-      tone(BUZZER, 85);
+      tone(BUZZER, 1000);
       delay(1000);
-      int data = 1;
       rotateForward();
-      s.write(data);
     } else if (c == 'b') {
-      
-      int data = 0;
       rotateBack();
-      s.write(data);
     }
   }
   Serial.println("END");

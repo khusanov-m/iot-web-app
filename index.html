@@ -14,10 +14,6 @@
           <th>Field</th>
           <th>Value</th>
         </tr>
-        <tr>
-          <td>LED</td>
-          <td id="led">OFF</td>
-        </tr>
 
         <tr>
           <td>Status</td>
@@ -30,12 +26,31 @@
         </tr>
 
         <tr>
+          <td>Humidity</td>
+          <td id="humidity">0</td>
+        </tr>
+        <tr>
+          <td>Temperature</td>
+          <td id="temperature">0</td>
+        </tr>
+
+        <tr>
           <td>Moisture Level</td>
           <td id="moisture">0</td>
+        </tr>
+
+        <tr>
+          <td>Water Level</td>
+          <td id="waterlvl">0</td>
         </tr>
       </table>
     </div>
 
+    <div>
+      <canvas id="myChart"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="app.js" type="module"></script>
   </body>
 </html>
