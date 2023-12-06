@@ -68,7 +68,7 @@ function prepareGraph(data) {
     if (data[i + 1]?.iteration > d?.iteration) {
       sets.push(total);
       total = 0;
-    } else if (i === data.length - 1) {
+    } else if (i === data.length - 1 && sets.length === 0) {
       sets.push(total);
     }
   });
