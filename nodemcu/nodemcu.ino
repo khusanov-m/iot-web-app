@@ -1,11 +1,11 @@
 #include <ESP8266Firebase.h>
 #include <ESP8266WiFi.h>
 #include "DHT.h"
-#include <Stepper.h>
+// #include <Stepper.h>
 #include <SoftwareSerial.h>
 
-#define _SSID "Netis"          // Your WiFi SSID
-#define _PASSWORD "The/+Future+/_/-Rich-/Family"      // Your WiFi Password
+#define _SSID "Redmi"          // Your WiFi SSID
+#define _PASSWORD "1234567890"      // Your WiFi Password
 #define REFERENCE_URL "https://iot-00011883-default-rtdb.firebaseio.com/"  // Your Firebase project reference url
 
 Firebase firebase(REFERENCE_URL);
@@ -140,12 +140,12 @@ void onLedOff() {
 }
 
 void wateringCalculation() {
-  if (WaterValue > 400 || MoistureValue < 60) { // raining or water poured, turn watering off
+  if (WaterValue > 400 || MoistureValue < 20) { // raining or water poured, turn watering off
     firebase.setInt("LedStatus", 0); 
     firebase.setInt("EnableWatering", 0);
     isWateringOn = 0;
   } 
-  else if (TemperatureValue < 30 && MoistureValue > 120) {  // calibrated to not pour water in hot weather
+  else if (TemperatureValue < 30 && MoistureValue > 30) {  // calibrated to not pour water in hot weather
     unsigned long currentMillis = millis(); // to separate timing for statistics calculation
     if ((unsigned long)(currentMillis - previousMillis) >= interval) {
       previousMillis = currentMillis;

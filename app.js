@@ -42,10 +42,12 @@ onValue(refDB, (snapshot) => {
   waterlvl.textContent = data.WaterLevel;
   temperature.textContent = data.Temperature;
   humidity.textContent = data.Humidity;
+
+  console.log(data.WateringCounts);
   const ws = Object.keys(data.WateringCounts).map((key) =>
     JSON.parse(data.WateringCounts[key].replace(/'/g, '"'))
   );
-
+  console.log(ws);
   prepareGraph(ws);
 });
 
@@ -66,6 +68,8 @@ function prepareGraph(data) {
     if (data[i + 1]?.iteration > d?.iteration) {
       sets.push(total);
       total = 0;
+    } else if (i === data.length - 1) {
+      sets.push(total);
     }
   });
 
